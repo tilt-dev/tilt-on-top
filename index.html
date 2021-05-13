@@ -1,8 +1,17 @@
 <html>
   <head>
-    <title>Example App</title>
+    <title>Tilt on Top</title>
   </head>
   <body>
-    Hello World.
+    <pre><code id="session-data">Hello world!</code></pre>
   </body>
+  <script>
+    try {
+      require('electron').ipcRenderer.on('session', (event, message) => {
+        document.getElementById('session-data').innerText = JSON.stringify(message.obj, null, 2)
+      })
+    } catch (err) {
+      document.getElementById('session-data').innerText = err
+    }
+  </script>
 </html>
