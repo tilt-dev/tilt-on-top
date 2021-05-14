@@ -4,6 +4,7 @@ const { app, Menu, MenuItem, Tray } = require('electron')
 const client = require('./src/lib/client')
 var k8s = require("@kubernetes/client-node");
 const TiltApi = require("./src/gen/api").TiltDevV1alpha1Api;
+const shell = require('electron').shell;
 
 app.whenReady().then(() => {
   const tray = new Tray(path.join(__dirname, 'favicon.png'))
@@ -29,11 +30,17 @@ app.whenReady().then(() => {
       }
     })
 
-    let context = config.getCurrentContext()
-    if (!context && config.getContexts().length) {
+    if (!config.getCurrentContext()) {
+      config.getContexts().forEach((c) => {
+        if (c.name == 'tilt-default') {
+          config.setCurrentContext(c.name)
+        }
+      })
+    }
+
+    if (!config.getCurrentContext() && config.getContexts().length) {
       config.setCurrentContext(config.getContexts()[0].name)
     }
-    console.log('context', config.getCurrentContext())
     return config
   }
 
@@ -51,18 +58,22 @@ app.whenReady().then(() => {
     const config = getConfig()
     const api = config.makeApiClient(TiltApi);
     const listFn = () => api.listSession();
-    informer = k8s.makeInformer(config, '/apis/tilt.dev/v1alpha1/sessions', listFn)
-    informer.on('add', safeSend)
-    informer.on('update', safeSend)
-    informer.on('error', (err) => {
-      console.error('Informer error: ' + err)
-      console.error('Backing off (5s)')
-      // Restart informer after 5sec
-      setTimeout(() => {
-        informer.start()
-      }, 5000)
+    listFn().then(() => {
+      informer = k8s.makeInformer(config, '/apis/tilt.dev/v1alpha1/sessions', listFn)
+      informer.on('add', safeSend)
+      informer.on('update', safeSend)
+      informer.on('error', (err) => {
+        console.error('Informer error: ' + err)
+        console.error('Backing off (5s)')
+        // Restart informer after 5sec
+        setTimeout(() => {
+          informer.start()
+        }, 5000)
+      })
+      informer.start()
+    }).catch((err) => {
+      console.error('Cannot connect to Tilt: ' + err)
     })
-    informer.start()
   }
 
   function stopInformer() {
@@ -78,11 +89,22 @@ app.whenReady().then(() => {
     if (config.getContexts().length) {
       menuConfig = [
         {
-          label: 'Status',
+          label: 'Service Chart',
           click: () => {
             mb.showWindow(null)
           }
-        }
+        },
+        {
+          label: 'Dashboard',
+          click: () => {
+            let name = config.getCurrentContext()
+            let port = 10350
+            if (name != 'tilt-default') {
+              port = parseInt(name.substring(5), 10)
+            }
+            shell.openExternal(`http://localhost:${port}/`)
+          }
+        },
       ]
       menuConfig.push({
         label: 'Tilt Sessions',

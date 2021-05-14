@@ -1,17 +1,37 @@
 <html>
   <head>
     <title>Tilt on Top</title>
+    <link href="https://fonts.googleapis.com/css?family=Inconsolata:400,700" rel="stylesheet">
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://d3js.org/d3-time.v2.min.js"></script>
+    <script src="https://d3js.org/d3-time-format.v3.min.js"></script>
+    <script src="https://d3js.org/d3-axis.v2.min.js"></script>
+    <script src="https://d3js.org/d3-scale.v3.min.js"></script>
+    <script src="./testdata.js"></script>
+    <script src="./session-graph.js"></script>
   </head>
   <body>
-    <pre><code id="session-data">Hello world!</code></pre>
+    <div id="error"></div>
+    <div class="svg"></div>
   </body>
   <script>
+    document.getElementById('error').innerText = "Loading"
+    
+    let lastSession = null
+    setInterval(() => {
+      if (lastSession) {
+        renderSession(lastSession, new Date().toISOString())
+      }
+    }, 1000)
+    
     try {
       require('electron').ipcRenderer.on('session', (event, message) => {
-        document.getElementById('session-data').innerText = JSON.stringify(message, null, 2)
+        lastSession = message
+        renderSession(lastSession, new Date().toISOString())
+        document.getElementById('error').innerText = ""
       })
     } catch (err) {
-      document.getElementById('session-data').innerText = err
+      document.getElementById('error').innerText = "Error: " + err
     }
   </script>
 </html>
