@@ -19,32 +19,61 @@ app.whenReady().then(() => {
     }
   });
 
-  function sendSessionData() {
+  let contextOverride = ""
+
+  function getConfig() {
     let config = client.newTiltConfig()
+    config.getContexts().forEach((c) => {
+      if (c.name == contextOverride) {
+        config.setCurrentContext(c.name)
+      }
+    })
+
     let context = config.getCurrentContext()
     if (!context && config.getContexts().length) {
-      config.setCurrentContext(config.getContexts()[0])
+      config.setCurrentContext(config.getContexts()[0].name)
     }
+    console.log('context', config.getCurrentContext())
+    return config
+  }
 
-    let tiltClient = config.makeApiClient(TiltApi)
-    let watcher = new k8s.Watch(config)
-    watcher.watch(
-      '/apis/tilt.dev/v1alpha1/sessions', {},
-      (phase, obj) => {
-        console.error('send phase', phase)
-        try {
-          mb.window.webContents.send('session', {phase, obj})
-        } catch (err) {
-          console.error('send error', err)
-        }
-      },
-      (err) => {
-        console.error('done', err)
-      })
+  function safeSend(session) {
+    try {
+      mb.window.webContents.send('session', session)
+    } catch (err) {
+      console.error('send error', err)
+    }
+  }
+
+  let informer
+
+  function startInformer() {
+    const config = getConfig()
+    const api = config.makeApiClient(TiltApi);
+    const listFn = () => api.listSession();
+    informer = k8s.makeInformer(config, '/apis/tilt.dev/v1alpha1/sessions', listFn)
+    informer.on('add', safeSend)
+    informer.on('update', safeSend)
+    informer.on('error', (err) => {
+      console.error('Informer error: ' + err)
+      console.error('Backing off (5s)')
+      // Restart informer after 5sec
+      setTimeout(() => {
+        informer.start()
+      }, 5000)
+    })
+    informer.start()
+  }
+
+  function stopInformer() {
+    if (informer) {
+      informer.stop()
+      informer = null
+    }
   }
 
   function renderMenu() {
-    let config = client.newTiltConfig()
+    let config = getConfig()
     let menuConfig = [{label: 'No tilt running'}]
     if (config.getContexts().length) {
       menuConfig = [
@@ -59,7 +88,17 @@ app.whenReady().then(() => {
         label: 'Tilt Sessions',
         submenu: config.getContexts().map((context) => {
           return {
-            label: context.name
+            type: "radio",
+            label: context.name,
+            checked: context.name == config.getCurrentContext(),
+            click: () => {
+              contextOverride = context.name
+              renderMenu()
+              if (informer) {
+                stopInformer()
+                startInformer()
+              }
+            }
           }
         })
       })
@@ -74,5 +113,6 @@ app.whenReady().then(() => {
     // your app code here
   });
 
-  mb.on('after-create-window', sendSessionData)
+  mb.on('after-show', startInformer)
+  mb.on('after-hide', stopInformer)
 })
