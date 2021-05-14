@@ -1,0 +1,25 @@
+<html>
+  <head>
+    <title>Tilt on Top Test Harness</title>
+    <link href="https://fonts.googleapis.com/css?family=Inconsolata:400,700" rel="stylesheet">
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://d3js.org/d3-time.v2.min.js"></script>
+    <script src="https://d3js.org/d3-time-format.v3.min.js"></script>
+    <script src="https://d3js.org/d3-axis.v2.min.js"></script>
+    <script src="https://d3js.org/d3-scale.v3.min.js"></script>
+    <script src="./testdata.js"></script>
+    <script src="./session-graph.js"></script>
+  </head>
+  <body>
+    <div class="svg" />
+  </body>
+  <script>
+    renderSession(testSession, d3.isoParse('2021-05-14T16:39:20.389282Z'))
+
+    let i = 20
+    setInterval(() => {
+      i += 0.1
+     // renderSession(testSession, d3.isoParse(`2021-05-14T16:39:${i}Z`))
+    }, 100)
+  </script>
+</html>
