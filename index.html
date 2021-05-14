@@ -8,7 +8,7 @@
   <script>
     try {
       require('electron').ipcRenderer.on('session', (event, message) => {
-        document.getElementById('session-data').innerText = JSON.stringify(message.obj, null, 2)
+        document.getElementById('session-data').innerText = JSON.stringify(message, null, 2)
       })
     } catch (err) {
       document.getElementById('session-data').innerText = err
