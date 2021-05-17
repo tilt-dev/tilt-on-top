@@ -1,4 +1,4 @@
-# tilt-menubar
+# tilt-on-op
 
 A little demo project on how to connect to Tilt from the OS menubar
 
